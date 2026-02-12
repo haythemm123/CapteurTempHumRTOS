@@ -15,7 +15,7 @@ const char* ssid = "HONOR X6c";
 const char* password = "haythem1234"; 
 
 // MUST match the Python script broker
-const char* mqtt_server = "test.mosquitto.org"; 
+const char* mqtt_server = "broker.hivemq.com";  
 const char* mqtt_topic = "pfe/sensor/data";
 
 WiFiClient espClient;
@@ -53,7 +53,7 @@ void reconnect() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   pinMode(GREEN_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
   pinMode(BUZZER, OUTPUT);
