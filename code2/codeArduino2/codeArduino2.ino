@@ -15,12 +15,16 @@ const char* ssid = "HONOR X6c";
 const char* password = "haythem1234"; 
 
 // MUST match the Python script broker
-const char* mqtt_server = "test.mosquitto.org"; 
+const char* mqtt_server = "broker.hivemq.com"; 
 const char* mqtt_topic = "pfe/sensor/data";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 DHT dht(DHTPIN, DHTTYPE);
+
+unsigned long previousMillis = 0;
+const unsigned long beepInterval = 300; // ms
+bool buzzerState = false;
 
 void setup_wifi() {
   delay(10);
@@ -53,14 +57,21 @@ void reconnect() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   pinMode(GREEN_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
   pinMode(BUZZER, OUTPUT);
+
+  digitalWrite(GREEN_LED, LOW);
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(BUZZER, HIGH);
   
   dht.begin();
   setup_wifi();
   client.setServer(mqtt_server, 1883);
+
+  
+  Serial.println("ESP32 + DHT22 Monitoring Started...");
 }
 
 void loop() {
@@ -92,10 +103,19 @@ void loop() {
   if (t > 30.0) { // Local Alert Threshold
     digitalWrite(RED_LED, HIGH);
     digitalWrite(GREEN_LED, LOW);
+    Serial.println("⚠️ WARNING: Threshold exceeded!!!");
+    Serial.println(jsonPayload);
+    digitalWrite(BUZZER, LOW);
+    Serial.println("Buzzer: on");
   } else {
     digitalWrite(RED_LED, LOW);
     digitalWrite(GREEN_LED, HIGH);
+    Serial.println("✅ Status: Normal");
+    Serial.println(jsonPayload);
+    digitalWrite(BUZZER, HIGH);
+    buzzerState = false;
   }
 
+  Serial.println("----------------------------------");
   delay(2000); // Send data every 2 seconds
 }
