@@ -11,8 +11,8 @@
 
 // ------------------- WI-FI & MQTT -------------------
 // ⚠️ REPLACE WITH YOUR REAL WIFI OR HOTSPOT ⚠️
-const char* ssid = "MOUADH 8622";        
-const char* password = "11111111"; 
+const char* ssid = "Did@";        
+const char* password = "+21698346450"; 
 
 // MUST match the Python script broker
 const char* mqtt_server = "broker.hivemq.com"; 

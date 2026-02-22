@@ -1,91 +1,119 @@
-import matplotlib.pyplot as plt
-import pandas as pd
 import sqlite3
+import pandas as pd
+import matplotlib.pyplot as plt
 import io
+import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-import smtplib
-import datetime
-
-# Configuration
-DB_NAME = "pfe_smart_system.db"
+from datetime import datetime, timedelta
+DB_NAME = "pfe_data.db"
 SENDER_EMAIL = "haythemm.marnaoui@gmail.com"
-SENDER_PASSWORD = "haef fbtg nxmn bdf" # Your App Password
+SENDER_PASSWORD = "mnfpduepogawhuog"  
 RECEIVER_EMAIL = "haythemm.marnaoui@gmail.com"
 
-def generate_daily_graph():
+def generate_graph():
     """
-    Reads DB, creates a graph image, saves it to memory buffer.
+    Reads DB, creates a graph image, returns the image data.
     """
-    conn = sqlite3.connect(DB_NAME)
-    
-    # Load data into Pandas DataFrame (Perfect for AI later too)
-    df = pd.read_sql_query("SELECT timestamp, temperature FROM readings", conn)
-    conn.close()
+    try:
+     
+        conn = sqlite3.connect(DB_NAME)
+        
+        
+        query = "SELECT timestamp, temperature, humidity FROM readings"
+        df = pd.read_sql_query(query, conn)
+        conn.close()
 
-    if df.empty:
+        if df.empty:
+            print("[REPORT] Database is empty. Cannot generate graph.")
+            return None
+
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+        cutoff_time = datetime.now() - timedelta(hours=24)
+        df = df[df['timestamp'] > cutoff_time]
+
+        if df.empty:
+            print("[REPORT] No data found in the last 24 hours.")
+            return None
+
+      
+        plt.figure(figsize=(10, 5)) 
+        
+    
+        plt.plot(df['timestamp'], df['temperature'], color='tab:red', label='Temp (C)')
+        
+        
+        plt.plot(df['timestamp'], df['humidity'], color='tab:blue', label='Humidity (%)')
+
+        plt.title(f"Daily Environment Report - {datetime.now().date()}")
+        plt.xlabel("Time")
+        plt.ylabel("Values")
+        plt.legend() 
+        plt.grid(True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png')
+        img_buffer.seek(0)
+        plt.close() 
+        
+        print("[REPORT] Graph generated successfully.")
+        return img_buffer
+
+    except Exception as e:
+        print(f"[ERROR] Graph generation failed: {e}")
         return None
 
-    # Convert string time to real datetime
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    
-    # Filter only last 24 hours
-    cutoff = datetime.datetime.now() - datetime.timedelta(hours=24)
-    df = df[df['timestamp'] > cutoff]
-
-    if df.empty:
-        return None
-
-    # Plotting
-    plt.figure(figsize=(10, 5))
-    plt.plot(df['timestamp'], df['temperature'], color='red', marker='o', linestyle='-')
-    plt.title(f"Temperature Report ({datetime.date.today()})")
-    plt.xlabel("Time")
-    plt.ylabel("Temperature (°C)")
-    plt.grid(True)
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-
-    # Save graph to a Bytes Buffer (Virtual File)
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    plt.close()
-    
-    return buf
-
-def send_daily_report():
+def send_daily_email():
     """
-    Generates graph and sends email with attachment.
+    Generates the graph and sends it via email.
     """
-    print("📊 Generating Daily Report...")
-    graph_img = generate_daily_graph()
+    print("[REPORT] Starting daily report process...")
+    
+ 
+    graph_img = generate_graph()
     
     if graph_img is None:
-        print("⚠️ No data to report.")
+        print("[REPORT] Aborting email (No graph).")
         return
 
-    # Email Setup
-    msg = MIMEMultipart()
-    msg['Subject'] = f"📅 Daily Log Report - {datetime.date.today()}"
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = RECEIVER_EMAIL
-
-    body = MIMEText("<h3>Daily Environmental Report</h3><p>Attached is the temperature trend for the last 24 hours.</p>", 'html')
-    msg.attach(body)
-
-    # Attach Image
-    img = MIMEImage(graph_img.read())
-    img.add_header('Content-Disposition', 'attachment', filename='daily_graph.png')
-    msg.attach(img)
-
-    # Send
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
-            server.send_message(msg)
-        print("✅ Daily Report Sent!")
+     
+        msg = MIMEMultipart()
+        msg['Subject'] = f"Daily Report: {datetime.now().strftime('%Y-%m-%d')}"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = RECEIVER_EMAIL
+
+     
+        body_text = f"""
+        <html>
+            <body>
+                <h2>Daily Environmental Log</h2>
+                <p>Attached is the graph for the last 24 hours.</p>
+                <p><b>System Status:</b> Online</p>
+                <p><b>Generated at:</b> {datetime.now().strftime('%H:%M:%S')}</p>
+            </body>
+        </html>
+        """
+        msg.attach(MIMEText(body_text, 'html'))
+
+      
+        image = MIMEImage(graph_img.read())
+        image.add_header('Content-Disposition', 'attachment', filename='daily_graph.png')
+        msg.attach(image)
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"[SUCCESS] Daily report sent to {RECEIVER_EMAIL}")
+
     except Exception as e:
-        print(f"❌ Report Failed: {e}")
+        print(f"[ERROR] Email sending failed: {e}")
+
+
+if __name__ == "__main__":
+    send_daily_email()
