@@ -6,7 +6,7 @@ from emailsender import send_alert as send_email
 from telegram_sender import send_telegram_alert as send_telegram
 from db_manager import save_to_db 
 from report_generator import send_daily_email
-BROKER_ADDRESS = "broker.hivemq.com" 
+BROKER_ADDRESS = "10.86.239.57" 
 PORT = 1883
 TOPIC = "pfe/sensor/data" 
 

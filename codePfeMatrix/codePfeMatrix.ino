@@ -1,6 +1,13 @@
 #include <DHT.h>
 #include <WiFi.h> 
 #include <PubSubClient.h>
+#include <MD_Parola.h>
+#include <MD_MAX72xx.h>
+#include <SPI.h>
+
+// -------- CONFIG --------
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+#define MAX_DEVICES 8   // 4 modules = 8x32 display
 
 // ------------------- PIN DEFINITIONS -------------------
 #define DHTPIN 4
@@ -8,14 +15,19 @@
 #define GREEN_LED 18
 #define RED_LED   22
 #define BUZZER    23
+#define DATA_PIN 13
+#define CLK_PIN  14
+#define CS_PIN   15
+
+MD_Parola display = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
 // ------------------- WI-FI & MQTT -------------------
 // ⚠️ REPLACE WITH YOUR REAL WIFI OR HOTSPOT ⚠️
-const char* ssid = "momento";        
-const char* password = "29092022"; 
+const char* ssid = "Galaxy A501AFE";        
+const char* password = "juyi7252"; 
 
 // MUST match the Python script broker
-const char* mqtt_server = "10.86.239.57"; 
+const char* mqtt_server = "192.168.43.101"; 
 const char* mqtt_topic = "pfe/sensor/data";
 
 WiFiClient espClient;
@@ -65,6 +77,13 @@ void setup() {
   digitalWrite(GREEN_LED, LOW);
   digitalWrite(RED_LED, LOW);
   digitalWrite(BUZZER, HIGH);
+
+  display.begin();
+  display.setIntensity(5);   // Brightness (0-15)
+  display.displayClear();
+
+  // Show static text first
+  display.displayText("HELLO", PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
   
   dht.begin();
   setup_wifi();
@@ -107,6 +126,10 @@ void loop() {
     Serial.println(jsonPayload);
     digitalWrite(BUZZER, LOW);
     Serial.println("Buzzer: on");
+
+    if (display.displayAnimate()) {
+      display.displayText("WARNING: THRESHOLD EXCEEDED!!!", PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+    }
   } else {
     digitalWrite(RED_LED, LOW);
     digitalWrite(GREEN_LED, HIGH);
@@ -114,6 +137,14 @@ void loop() {
     Serial.println(jsonPayload);
     digitalWrite(BUZZER, HIGH);
     buzzerState = false;
+
+    char msg[50];
+    sprintf(msg, "T:%.1f H:%.1f%%", t, h);
+
+    // Show static text
+    if (display.displayAnimate()) {
+      display.displayText(msg, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+    }
   }
 
   Serial.println("----------------------------------");
